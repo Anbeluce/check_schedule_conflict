@@ -3,8 +3,9 @@ import os
 from datetime import datetime
 from tkinter import (
     Tk, Listbox, Text, Scrollbar, END, SINGLE,
-    BOTH, VERTICAL, HORIZONTAL
+    BOTH, VERTICAL, HORIZONTAL, BooleanVar
 )
+
 from tkinter import messagebox, filedialog
 from tkinter import ttk
 
@@ -75,7 +76,15 @@ class ScheduleGUI:
         self.cmb_class.current(0)
         self.cmb_class.pack(fill="x", pady=(0, 5))
         self.cmb_class.bind("<<ComboboxSelected>>", self._on_class_changed)
-
+        # checkbox: chỉ hiện các lớp không trùng với các môn đã chọn
+        self.var_filter_non_conflict = BooleanVar(value=False)
+        chk_non_conflict = ttk.Checkbutton(
+            frame_left,
+            text="Chỉ hiện lớp không trùng với môn đã chọn",
+            variable=self.var_filter_non_conflict,
+            command=self._on_non_conflict_toggle,
+        )
+        chk_non_conflict.pack(anchor="w", pady=(0, 5))
         lbl_courses = ttk.Label(
             frame_left,
             text="Môn học (gộp LT + TH, chia theo lớp & nhóm):"
@@ -104,6 +113,8 @@ class ScheduleGUI:
 
         self.lb_courses.bind("<<ListboxSelect>>", self._on_course_select)
                 # --- phím tắt cho list môn ---
+                # --- click đúp vào 1 môn = thêm môn đó ---
+        self.lb_courses.bind("<Double-Button-1>", self._on_course_double_click)
         self.lb_courses.bind("<Up>", self._on_course_key)
         self.lb_courses.bind("<Down>", self._on_course_key)
         self.lb_courses.bind("<Prior>", self._on_course_key)   # PageUp
@@ -226,21 +237,80 @@ class ScheduleGUI:
 
     def _update_course_list(self):
         self.lb_courses.delete(0, END)
+
         selected_subject = self.cmb_class.get()
         if selected_subject in ("", "Tất cả môn"):
-            self.filtered_keys = list(self.all_keys)
+            keys = list(self.all_keys)
         else:
-            self.filtered_keys = [
-                k for k in self.all_keys if k[1] == selected_subject
+            keys = [
+                k for k in self.all_keys
+                if k[1] == selected_subject  # k[1] = subject_name
             ]
 
+        # Nếu đang bật chế độ "chỉ hiện lớp không trùng" và đã có môn được chọn
+        if getattr(self, "var_filter_non_conflict", None) is not None \
+           and self.var_filter_non_conflict.get() and self.selected_keys:
+
+            # Gom tất cả session của các môn đã chọn
+            selected_sessions = []
+            for sk in self.selected_keys:
+                selected_sessions.extend(self.options[sk])
+
+            non_conflicting_keys = []
+            for k in keys:
+                # Bỏ qua các môn đã chọn rồi (chỉ lọc các lựa chọn mới)
+                if k in self.selected_keys:
+                    continue
+
+                candidate_sessions = self.options[k]
+                if not self._has_conflict_with_selected(
+                    selected_sessions,
+                    candidate_sessions,
+                ):
+                    non_conflicting_keys.append(k)
+
+            keys = non_conflicting_keys
+
+        self.filtered_keys = keys
         for key in self.filtered_keys:
             self.lb_courses.insert(END, self._format_option_label(key))
 
 
+    def _has_conflict_with_selected(
+        self,
+        selected_sessions: list,
+        candidate_sessions: list,
+    ) -> bool:
+        """
+        Trả về True nếu candidate_sessions tạo thêm xung đột
+        với selected_sessions (hoặc tự xung đột với chính nó).
+        """
+        if not candidate_sessions or not selected_sessions:
+            return False
+
+        combined = list(selected_sessions) + list(candidate_sessions)
+        conflicts = find_conflicts(combined)
+        if not conflicts:
+            return False
+
+        # chỉ quan tâm xung đột trong đó có ít nhất 1 buổi thuộc môn candidate
+        for a, b in conflicts:
+            in_candidate_a = a in candidate_sessions
+            in_candidate_b = b in candidate_sessions
+            if in_candidate_a or in_candidate_b:
+                return True
+
+        return False
+
     # ---------- event handlers ----------
 
     def _on_class_changed(self, event=None):
+        self._update_course_list()
+        self._clear_detail()
+    def _on_non_conflict_toggle(self):
+        """
+        Bật/tắt chế độ chỉ hiện các lớp không trùng với môn đã chọn.
+        """
         self._update_course_list()
         self._clear_detail()
 
@@ -266,6 +336,14 @@ class ScheduleGUI:
         """
         self._add_current_course()
         return "break"   # tránh tiếng 'bíp' mặc định
+    def _on_course_double_click(self, event=None):
+        """
+        Click đúp vào một môn ở list bên trái = chọn + thêm vào danh sách đã chọn.
+        """
+        # đảm bảo selection đã được cập nhật
+        self._on_course_select()
+        self._add_current_course()
+        return "break"  # tránh hành vi mặc định/bíp
 
     # ---------- detail preview ----------
 
@@ -383,7 +461,14 @@ class ScheduleGUI:
         self.lb_selected.delete(0, END)
         for key in self.selected_keys:
             self.lb_selected.insert(END, self._format_option_label(key))
+
         self._update_conflict_status()
+
+        # Nếu đang bật chế độ chỉ hiện lớp không trùng thì cần cập nhật lại list bên trái
+        if getattr(self, "var_filter_non_conflict", None) is not None \
+           and self.var_filter_non_conflict.get():
+            self._update_course_list()
+
 
     # ---------- conflicts & export ----------
 
