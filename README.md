@@ -1,7 +1,8 @@
-﻿# check_schedule_conflict
-# Có sử dụng ChatGPT
-# Video hướng dẫn
+#Schedule Checker
+## Có sử dụng ChatGPT
+## Video hướng dẫn
 ### https://www.youtube.com/watch?v=DwUryEY6-Dc
+# Hướng dẫn sử dụng
 ## 1. Cài thư viện
 ```pip install -r requirements.txt```
 
@@ -15,6 +16,7 @@
 
 ## 4. Đọc file ICS và tạo viewer HTML
 ```python read_ics.py ./ics_output/<ten_file_ics>.ics```
+
 
 
 
