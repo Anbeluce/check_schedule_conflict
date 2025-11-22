@@ -1,5 +1,5 @@
 ﻿# check_schedule_conflict
-#Có sử dụng ChatGPT
+# Có sử dụng ChatGPT
 # Video hướng dẫn
 ### https://www.youtube.com/watch?v=DwUryEY6-Dc
 ## 1. Cài thư viện
@@ -15,6 +15,7 @@ python main_gui.py
 
 ## 4. Đọc file ICS và tạo viewer HTML
 python read_ics.py ./ics_output/<ten_file_ics>.ics
+
 
 
 
