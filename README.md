@@ -1,7 +1,7 @@
-#Schedule Checker
+# Schedule Checker
 ## Có sử dụng ChatGPT
 ## Video hướng dẫn
-### https://www.youtube.com/watch?v=DwUryEY6-Dc
+https://www.youtube.com/watch?v=DwUryEY6-Dc
 # Hướng dẫn sử dụng
 ## 1. Cài thư viện
 ```pip install -r requirements.txt```
