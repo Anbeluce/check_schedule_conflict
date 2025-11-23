@@ -6,22 +6,55 @@ import requests
 
 def load_config(path: str = "config.json") -> dict:
     """
-    Đọc file config.json, trả về dict.
-    Nếu không có file hoặc lỗi -> trả về {}.
+    Đọc file config.json, đảm bảo luôn có:
+      - 'ctl00$ContentPlaceHolder$cboHocKy' (mặc định '37')
+      - 'classes' là list (mặc định [])
+    Nếu file chưa tồn tại thì tự tạo file mẫu.
     """
+    # giá trị mặc định bắt buộc phải có
+    default_config = {
+        "ctl00$ContentPlaceHolder$cboHocKy": "37",
+        "classes": [],
+    }
+
+    data = {}
+
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
             if not isinstance(data, dict):
-                print("⚠️ config.json không phải dạng object {}, bỏ qua.")
-                return {}
-            return data
+                print("⚠️ config.json không phải dạng object {}, dùng mặc định.")
+                data = {}
     except FileNotFoundError:
-        print("⚠️ Không tìm thấy config.json, dùng giá trị mặc định trong code.")
-        return {}
+        print("⚠️ Không tìm thấy config.json, sẽ tạo file mẫu.")
+        data = {}
     except Exception as e:
-        print(f"⚠️ Lỗi đọc config.json: {e}")
-        return {}
+        print(f"⚠️ Lỗi đọc config.json: {e}, dùng mặc định.")
+        data = {}
+
+    # merge mặc định vào (không đè giá trị user đã chỉnh)
+    changed = False
+    for k, v in default_config.items():
+        if k not in data:
+            data[k] = v
+            changed = True
+
+    # nếu có key mà sai kiểu, sửa lại cho chuẩn
+    if not isinstance(data.get("classes", []), list):
+        data["classes"] = []
+        changed = True
+
+    # nếu có thay đổi hoặc file chưa tồn tại -> ghi lại config.json
+    if changed:
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+            print(f"✅ Đã cập nhật/tạo {path} với giá trị mặc định.")
+        except Exception as e:
+            print(f"⚠️ Không ghi được config.json: {e}")
+
+    return data
+
 
 config = load_config()
 
